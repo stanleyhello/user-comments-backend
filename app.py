@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from supabase import create_client, Client
 from groq import Groq
 from dotenv import load_dotenv
@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-# Initialize Flask app
 app = Flask(__name__)
 
 # Supabase setup
@@ -19,8 +18,8 @@ supabase: Client = create_client(supabase_url, supabase_key)
 groq_client = Groq(api_key=os.getenv('GROQ_API_KEY'))
 
 @app.route('/')
-def index():
-    return render_template('index.html')
+def root():
+    return jsonify({"message": "Backend running"}), 200
 
 @app.route('/submit_comment', methods=['POST'])
 def submit_comment():
@@ -28,9 +27,8 @@ def submit_comment():
     company = data.get('company')
     comment = data.get('comment')
 
-    # Insert comment into Supabase
     try:
-        response = supabase.table('comments').insert({
+        supabase.table('comments').insert({
             'company': company,
             'comment': comment
         }).execute()
@@ -40,19 +38,17 @@ def submit_comment():
 
 @app.route('/get_summary', methods=['GET'])
 def get_summary():
-    # Fetch comments from Supabase
     try:
         response = supabase.table('comments').select('*').execute()
         comments = response.data
 
-        # Generate summary using OpenAI
         if comments:
             comments_text = "\n".join([c['comment'] for c in comments])
             summary_response = groq_client.chat.completions.create(
                 model="mixtral-8x7b-32768",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company."},
-                    {"role": "user", "content": f"Summarize the following comments, highlighting key themes and sentiments:\n{comments_text}"}
+                    {"role": "user", "content": f"Summarize the following comments:\n{comments_text}"}
                 ]
             )
             summary = summary_response.choices[0].message.content
