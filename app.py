@@ -50,8 +50,8 @@ def get_summary():
             summary_response = groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company."},
-                    {"role": "user", "content": f"Summarize the following comments, highlighting key themes and sentiments:\n{comments_text}"}
+                    {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company. Always provide a concise summary in 4 sentences or less."},
+                    {"role": "user", "content": f"Summarize the following comments, highlighting key themes and sentiments in 4 sentences maximum. Summarize overall sentiment, don't just restate each comment:\n{comments_text}"}
                 ]
             )
 
