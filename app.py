@@ -62,6 +62,38 @@ def get_summary():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/query_comments', methods=['POST'])
+def query_comments():
+    try:
+        # Get the user's query from the request
+        user_query = request.json.get('query')
+        
+        # Fetch all comments from Supabase
+        response = supabase.table('comments').select('*').execute()
+        comments = response.data
+        
+        if comments:
+            # Combine all comments into a single text block
+            comments_text = "\n".join([f"Comment about {c['company']}: {c['comment']}" for c in comments])
+            
+            # Use Groq to generate a response based on the query and comments
+            query_response = groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that analyzes user comments about companies. Provide concise, relevant answers based on the available comments."},
+                    {"role": "user", "content": f"Context of comments:\n{comments_text}\n\nUser Query: {user_query}\n\nPlease provide a helpful response based on the available comments. Keep your answer concise and to the point."}
+                ]
+            )
+            
+            # Extract and return the response
+            answer = query_response.choices[0].message.content
+            return jsonify({"status": "success", "answer": answer}), 200
+        else:
+            return jsonify({"status": "success", "answer": "No comments are available to query."}), 200
+    
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
