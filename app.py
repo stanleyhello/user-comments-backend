@@ -29,11 +29,15 @@ def submit_comment():
     data = request.json
     company = data.get('company')
     comment = data.get('comment')
+    name = data.get('name')
+    email = data.get('email')
 
     try:
         supabase.table('comments').insert({
             'company': company,
-            'comment': comment
+            'comment': comment,
+            'name': name,
+            'email': email
         }).execute()
         return jsonify({"status": "success", "message": "Comment submitted successfully"}), 200
     except Exception as e:
