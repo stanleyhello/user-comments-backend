@@ -1,19 +1,13 @@
 import os
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from supabase import create_client, Client
 from groq import Groq
 from dotenv import load_dotenv
-import logging
 
 # Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 
 # Supabase setup
 supabase_url = os.getenv('SUPABASE_URL')
@@ -29,31 +23,17 @@ def root():
 
 @app.route('/submit_comment', methods=['POST'])
 def submit_comment():
+    data = request.json
+    company = data.get('company')
+    comment = data.get('comment')
+
     try:
-        # Log the incoming request data
-        app.logger.info(f"Received data: {request.json}")
-        
-        data = request.json
-        company = data.get('company')
-        comment = data.get('comment')
-
-        # Validate input
-        if not company or not comment:
-            app.logger.warning("Invalid input: Missing company or comment")
-            return jsonify({"status": "error", "message": "Company and comment are required"}), 400
-
-        # Insert comment into Supabase
-        response = supabase.table('comments').insert({
+        supabase.table('comments').insert({
             'company': company,
             'comment': comment
         }).execute()
-        
-        app.logger.info(f"Supabase insert response: {response}")
         return jsonify({"status": "success", "message": "Comment submitted successfully"}), 200
-    
     except Exception as e:
-        # Log the full error
-        app.logger.error(f"Error submitting comment: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/get_summary', methods=['GET'])
@@ -65,12 +45,13 @@ def get_summary():
         if comments:
             comments_text = "\n".join([c['comment'] for c in comments])
             summary_response = groq_client.chat.completions.create(
-                model="mixtral-8x7b-32768",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company."},
-                    {"role": "user", "content": f"Summarize the following comments:\n{comments_text}"}
-                ]
-            )
+    model="llama-3.3-70b-versatile",  # Updated model ID
+    messages=[
+        {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company."},
+        {"role": "user", "content": f"Summarize the following comments, highlighting key themes and sentiments:\n{comments_text}"}
+    ]
+)
+
             summary = summary_response.choices[0].message.content
             return jsonify({"status": "success", "summary": summary}), 200
         else:
