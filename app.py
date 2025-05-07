@@ -1,5 +1,6 @@
 import os
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # ✅ Add this line
 from supabase import create_client, Client
 from groq import Groq
 from dotenv import load_dotenv
@@ -7,7 +8,9 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Initialize Flask app
 app = Flask(__name__)
+CORS(app, origins=["https://user-comments-frontend.vercel.app"])  # ✅ Enable CORS for your frontend
 
 # Supabase setup
 supabase_url = os.getenv('SUPABASE_URL')
@@ -45,12 +48,12 @@ def get_summary():
         if comments:
             comments_text = "\n".join([c['comment'] for c in comments])
             summary_response = groq_client.chat.completions.create(
-    model="llama-3.3-70b-versatile",  # Updated model ID
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company."},
-        {"role": "user", "content": f"Summarize the following comments, highlighting key themes and sentiments:\n{comments_text}"}
-    ]
-)
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that summarizes user comments about a company."},
+                    {"role": "user", "content": f"Summarize the following comments, highlighting key themes and sentiments:\n{comments_text}"}
+                ]
+            )
 
             summary = summary_response.choices[0].message.content
             return jsonify({"status": "success", "summary": summary}), 200

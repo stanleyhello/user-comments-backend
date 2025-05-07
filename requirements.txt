@@ -1,6 +1,6 @@
 flask==2.3.2
-flask-cors
 supabase==1.0.3
 groq
 python-dotenv==1.0.0
 gunicorn==20.1.0
+flask-cors
