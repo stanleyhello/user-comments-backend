@@ -215,11 +215,16 @@ JSON Response (MUST be valid JSON):""".format(comments_text)
             # Remove any leading/trailing whitespace
             result_text = result_text.strip()
             
-            # Remove any text before or after the JSON object
+            # Attempt to extract JSON using regex
             import re
-            json_match = re.search(r'\{[^{}]+\}', result_text)
+            # Try to find a JSON-like structure
+            json_match = re.search(r'\{["\w\s:.,\-]+\}', result_text)
             if json_match:
                 result_text = json_match.group(0)
+            
+            # Ensure quotes around keys are correct (for any unquoted keys)
+            # This is a fallback for poorly formatted responses
+            result_text = re.sub(r'(\w+):', r'"\1":', result_text)
             
             # Parse the JSON
             sentiment_trends = json.loads(result_text)
