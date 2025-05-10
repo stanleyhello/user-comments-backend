@@ -182,7 +182,7 @@ def get_sentiment_over_time():
         # Prepare prompt for Groq to analyze sentiment
         comments_text = "\n".join([f"{comment['created_at']}: {comment['comment']}" for comment in comments[:100]])
         
-        prompt = f"""Analyze the sentiment of the following comments and group them by week. 
+        prompt = """Analyze the sentiment of the following comments and group them by week. 
         Provide a VALID JSON object with weeks as keys and average sentiment scores (-1 to 1) as values.
         IMPORTANT: Ensure the JSON is PERFECTLY FORMATTED with no trailing commas or syntax errors.
         Example valid format: {"2025-W19": 0.25, "2025-W20": 0.13}
@@ -193,9 +193,9 @@ def get_sentiment_over_time():
         - Positive sentiment: 0.3 to 1
 
         Comments:
-{comments_text}
+{}
 
-JSON Response (MUST be valid JSON):"""
+JSON Response (MUST be valid JSON):""".format(comments_text)
 
         # Call Groq to analyze sentiment
         chat_completion = groq_client.chat.completions.create(
