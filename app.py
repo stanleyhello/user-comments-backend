@@ -183,8 +183,11 @@ def get_sentiment_over_time():
         comments_text = "\n".join([f"{comment['created_at']}: {comment['comment']}" for comment in comments[:100]])
         
         prompt = f"""Analyze the sentiment of the following comments and group them by week. 
-        Provide a JSON object with weeks as keys and average sentiment scores (-1 to 1) as values.
-        Use these guidelines:
+        Provide a VALID JSON object with weeks as keys and average sentiment scores (-1 to 1) as values.
+        IMPORTANT: Ensure the JSON is PERFECTLY FORMATTED with no trailing commas or syntax errors.
+        Example valid format: {"2025-W19": 0.25, "2025-W20": 0.13}
+
+        Guidelines for sentiment:
         - Negative sentiment: -1 to -0.3
         - Neutral sentiment: -0.3 to 0.3
         - Positive sentiment: 0.3 to 1
@@ -192,7 +195,7 @@ def get_sentiment_over_time():
         Comments:
 {comments_text}
 
-JSON Response:"""
+JSON Response (MUST be valid JSON):"""
 
         # Call Groq to analyze sentiment
         chat_completion = groq_client.chat.completions.create(
@@ -206,12 +209,37 @@ JSON Response:"""
 
         # Parse and return results
         result_text = chat_completion.choices[0].message.content
-        sentiment_trends = json.loads(result_text)
-
-        return jsonify({
-            'status': 'success', 
-            'sentiment_trends': sentiment_trends
-        }), 200
+        
+        # Attempt to clean and parse the JSON
+        try:
+            # Remove any leading/trailing whitespace
+            result_text = result_text.strip()
+            
+            # Remove any text before or after the JSON object
+            import re
+            json_match = re.search(r'\{[^{}]+\}', result_text)
+            if json_match:
+                result_text = json_match.group(0)
+            
+            # Parse the JSON
+            sentiment_trends = json.loads(result_text)
+            
+            # Validate the structure
+            if not isinstance(sentiment_trends, dict):
+                raise ValueError("Invalid JSON structure")
+            
+            return jsonify({
+                'status': 'success', 
+                'sentiment_trends': sentiment_trends
+            }), 200
+        
+        except (json.JSONDecodeError, ValueError) as e:
+            print(f"JSON Parsing Error: {e}")
+            print(f"Problematic JSON text: {result_text}")
+            return jsonify({
+                'status': 'error', 
+                'message': f'Failed to parse sentiment data: {str(e)}'
+            }), 500
 
     except Exception as e:
         print(f"Error in get_sentiment_over_time: {e}")
