@@ -165,6 +165,61 @@ JSON Response:"""
             'message': str(e)
         }), 500
 
+@app.route('/chart/sentiment', methods=['GET'])
+def get_sentiment_over_time():
+    try:
+        # Fetch comments with timestamp from Supabase
+        response = supabase.table('comments').select('created_at, comment').execute()
+        comments = response.data
+
+        # If no comments, return empty result
+        if not comments:
+            return jsonify({
+                'status': 'success', 
+                'sentiment_trends': {}
+            }), 200
+
+        # Prepare prompt for Groq to analyze sentiment
+        comments_text = "\n".join([f"{comment['created_at']}: {comment['comment']}" for comment in comments[:100]])
+        
+        prompt = f"""Analyze the sentiment of the following comments and group them by week. 
+        Provide a JSON object with weeks as keys and average sentiment scores (-1 to 1) as values.
+        Use these guidelines:
+        - Negative sentiment: -1 to -0.3
+        - Neutral sentiment: -0.3 to 0.3
+        - Positive sentiment: 0.3 to 1
+
+        Comments:
+{comments_text}
+
+JSON Response:"""
+
+        # Call Groq to analyze sentiment
+        chat_completion = groq_client.chat.completions.create(
+            messages=[{
+                'role': 'user',
+                'content': prompt
+            }],
+            model='llama3-70b-8192',
+            response_format={'type': 'json_object'}
+        )
+
+        # Parse and return results
+        result_text = chat_completion.choices[0].message.content
+        sentiment_trends = json.loads(result_text)
+
+        return jsonify({
+            'status': 'success', 
+            'sentiment_trends': sentiment_trends
+        }), 200
+
+    except Exception as e:
+        print(f"Error in get_sentiment_over_time: {e}")
+        return jsonify({
+            'status': 'error', 
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
