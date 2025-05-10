@@ -214,35 +214,35 @@ JSON Response (MUST be valid JSON):""".format(comments_text)
         try:
             # Remove any leading/trailing whitespace
             result_text = result_text.strip()
-            
-            # Attempt to extract JSON using regex
+
+            # Attempt to extract the largest JSON object (from first { to last })
             import re
-            # Try to find a JSON-like structure
-            json_match = re.search(r'\{["\w\s:.,\-]+\}', result_text)
+            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
             if json_match:
-                result_text = json_match.group(0)
-            
-            # Ensure quotes around keys are correct (for any unquoted keys)
-            # This is a fallback for poorly formatted responses
-            result_text = re.sub(r'(\w+):', r'"\1":', result_text)
-            
+                json_str = json_match.group(0)
+            else:
+                json_str = result_text  # fallback to the original
+
+            # Debug: print the extracted JSON string
+            print("Extracted JSON string:", json_str)
+
             # Parse the JSON
-            sentiment_trends = json.loads(result_text)
-            
+            sentiment_trends = json.loads(json_str)
+
             # Validate the structure
             if not isinstance(sentiment_trends, dict):
                 raise ValueError("Invalid JSON structure")
-            
+
             return jsonify({
-                'status': 'success', 
+                'status': 'success',
                 'sentiment_trends': sentiment_trends
             }), 200
-        
+
         except (json.JSONDecodeError, ValueError) as e:
             print(f"JSON Parsing Error: {e}")
             print(f"Problematic JSON text: {result_text}")
             return jsonify({
-                'status': 'error', 
+                'status': 'error',
                 'message': f'Failed to parse sentiment data: {str(e)}'
             }), 500
 
