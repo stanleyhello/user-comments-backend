@@ -114,6 +114,56 @@ def get_all_comments():
             "message": str(e)
         }), 500
 
+@app.route('/chart/issues', methods=['GET'])
+def get_common_issues():
+    try:
+        # Fetch all comments from Supabase
+        response = supabase.table('comments').select('comment').execute()
+        comments = [row['comment'] for row in response.data if row['comment']]
+
+        # If no comments, return empty result
+        if not comments:
+            return jsonify({
+                'status': 'success', 
+                'issues': {}
+            }), 200
+
+        # Prepare prompt for Groq
+        prompt = f"""Analyze the following user comments and extract the top 5 most frequently mentioned issues or themes. 
+        Return a JSON object where keys are issue names and values are their occurrence counts. 
+        Be concise and focus on substantive themes.
+
+        Comments:
+{chr(10).join(comments[:100])}
+
+JSON Response:"""
+
+        # Call Groq to analyze comments
+        chat_completion = groq_client.chat.completions.create(
+            messages=[{
+                'role': 'user',
+                'content': prompt
+            }],
+            model='llama3-70b-8192',
+            response_format={'type': 'json_object'}
+        )
+
+        # Parse and return results
+        result_text = chat_completion.choices[0].message.content
+        issues = json.loads(result_text)
+
+        return jsonify({
+            'status': 'success', 
+            'issues': issues
+        }), 200
+
+    except Exception as e:
+        print(f"Error in get_common_issues: {e}")
+        return jsonify({
+            'status': 'error', 
+            'message': str(e)
+        }), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
