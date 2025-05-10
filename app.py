@@ -185,6 +185,7 @@ def get_sentiment_over_time():
         prompt = """Analyze the sentiment of the following comments and group them by week. 
         Provide a VALID JSON object with weeks as keys and average sentiment scores (-1 to 1) as values.
         IMPORTANT: Ensure the JSON is PERFECTLY FORMATTED with no trailing commas or syntax errors.
+        IMPORTANT: Do NOT respond with just a string or a single key. Always return a full JSON object with at least one week as the key and a numeric sentiment score as the value.
         Example valid format: {"2025-W19": 0.25, "2025-W20": 0.13}
 
         Guidelines for sentiment:
@@ -223,15 +224,15 @@ JSON Response (MUST be valid JSON):""".format(comments_text)
             else:
                 json_str = result_text  # fallback to the original
 
-            # Debug: print the extracted JSON string
             print("Extracted JSON string:", json_str)
+            print("Full LLM response:", result_text)
 
             # Parse the JSON
             sentiment_trends = json.loads(json_str)
 
-            # Validate the structure
+            # Defensive: Check if we got a dict
             if not isinstance(sentiment_trends, dict):
-                raise ValueError("Invalid JSON structure")
+                raise ValueError(f"Expected a JSON object, got {type(sentiment_trends)}: {sentiment_trends}")
 
             return jsonify({
                 'status': 'success',
