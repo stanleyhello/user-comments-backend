@@ -165,6 +165,105 @@ JSON Response:"""
             'message': str(e)
         }), 500
 
+@app.route('/generate_comments', methods=['POST'])
+def generate_comments():
+    try:
+        data = request.json
+        prompt = data.get('prompt', '').strip()
+        count = min(max(int(data.get('count', 5)), 1), 20)  # Ensure count is between 1-20
+
+        if not prompt:
+            return jsonify({"status": "error", "error": "Prompt is required"}), 400
+
+        # Extract company name from prompt (simple implementation - last word)
+        company = prompt.split()[-1] if prompt.split() else 'Company'
+        
+        # Generate comments using Groq
+        system_prompt = """You are a helpful assistant that generates realistic user comments about companies. 
+        Generate {count} unique, varied comments based on the following prompt. 
+        Return ONLY a JSON array of comment strings, nothing else."""
+        
+        user_prompt = f"""Generate {count} realistic user comments about {prompt}. 
+        Make each comment unique and varied in length and style. 
+        Some should be positive, some negative, and some neutral.
+        
+        Example format:
+        [
+            "This is a positive comment about the company.",
+            "I had a negative experience with their service.",
+            "The product quality is average, nothing special."
+        ]"""
+        
+        # Call Groq API
+        response = groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        # Parse the response
+        try:
+            # Try to parse the response as JSON
+            response_text = response.choices[0].message.content
+            comments = json.loads(response_text)
+            
+            # If the response is a dictionary with a 'comments' key, use that
+            if isinstance(comments, dict) and 'comments' in comments:
+                comments = comments['comments']
+            # If the response is a dictionary with array values, use the first array found
+            elif isinstance(comments, dict):
+                for value in comments.values():
+                    if isinstance(value, list):
+                        comments = value
+                        break
+            
+            # Ensure we have a list of strings
+            if not isinstance(comments, list):
+                comments = [str(comments)]
+                
+            # Insert comments into the database
+            inserted_count = 0
+            for comment_text in comments:
+                if not isinstance(comment_text, str) or not comment_text.strip():
+                    continue
+                    
+                try:
+                    supabase.table('comments').insert({
+                        'company': company,
+                        'comment': comment_text.strip(),
+                        'name': 'Sample User',
+                        'email': 'sample@example.com',
+                        'is_sample': True
+                    }).execute()
+                    inserted_count += 1
+                except Exception as e:
+                    print(f"Error inserting comment: {e}")
+            
+            return jsonify({
+                "status": "success",
+                "count": inserted_count,
+                "message": f"Successfully generated {inserted_count} sample comments"
+            })
+            
+        except json.JSONDecodeError:
+            # If JSON parsing fails, try to extract comments from plain text
+            print("Failed to parse JSON response, falling back to text parsing")
+            return jsonify({
+                "status": "error",
+                "error": "Failed to parse the generated comments. Please try again."
+            }), 500
+            
+    except Exception as e:
+        print(f"Error in generate_comments: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "error": str(e)
+        }), 500
+
+
 @app.route('/chart/sentiment', methods=['GET'])
 def get_sentiment_over_time():
     try:
